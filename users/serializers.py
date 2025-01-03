@@ -15,13 +15,15 @@ class UserSerializer(serializers.ModelSerializer):
                   'patronymic']
 
 
-class AchievementSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Achievement
-        fields = '__all__'
-
-
 class AchievementImageSerializer(serializers.ModelSerializer):
     class Meta:
         model = AchievementImage
+        fields = '__all__'
+
+
+class AchievementSerializer(serializers.ModelSerializer):
+    images = AchievementImageSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Achievement
         fields = '__all__'
