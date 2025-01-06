@@ -1,4 +1,8 @@
+from datetime import date
+from decimal import Decimal
+
 from django.contrib.auth.models import AbstractUser
+from django.core.validators import FileExtensionValidator, MinValueValidator, MaxValueValidator
 from django.db import models
 
 
@@ -18,25 +22,103 @@ class Role(models.Model):
 
 class User(AbstractUser):
     """
-    Модель пользователя.
+    Расширенная модель пользователя.
     """
-    role = models.ForeignKey(Role, max_length=50, help_text="Роль", verbose_name="Роль", null=True, # TODO NULL=FALSE
-                             on_delete=models.PROTECT)
-    bio = models.TextField(blank=True, null=True, help_text="Биография", verbose_name="Биография")
-    date_of_birth = models.DateField(null=True, help_text="Дата рождения", verbose_name="Дата рождения") # TODO NULL=FALSE
-    patronymic = models.CharField(max_length=100, blank=True, null=True, help_text="Отчество (необязательно)",
-                                  verbose_name="Отчество")
-    profile_image = models.ImageField(upload_to='profile_images/', blank=True, null=True,
-                                      help_text="Изображение профиля", verbose_name="Изображение профиля")
-    date_joined = models.DateTimeField(auto_now_add=True, editable=False)
+    username = models.CharField(
+        max_length=150,
+        unique=True,
+        verbose_name="Имя пользователя",
+        help_text="Уникальное имя пользователя."
+    )
+    email = models.EmailField(unique=True, verbose_name="Email")
+    weight_kg = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        blank=True,
+        null=True,
+        validators=[MinValueValidator(Decimal(0)), MaxValueValidator(Decimal(300))],
+        verbose_name="Вес (кг)",
+        help_text="Вес пользователя в килограммах."
+    )
+    height_cm = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        blank=True,
+        null=True,
+        validators=[MinValueValidator(Decimal(0)), MaxValueValidator(Decimal(300))],
+        verbose_name="Рост (см)",
+        help_text="Рост пользователя в сантиметрах."
+    )
+    role = models.ForeignKey(
+        'Role',
+        on_delete=models.PROTECT,
+        blank=True,
+        null=True,
+        verbose_name="Роль",
+        help_text="Роль пользователя.",
+        related_name="users",
+        related_query_name="user"
+    )
+    bio = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name="Биография",
+        help_text="Краткая информация о пользователе."
+    )
+    date_of_birth = models.DateField(
+        blank=True,
+        null=True,
+        verbose_name="Дата рождения",
+        help_text="Дата рождения пользователя."
+    )
+    patronymic = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        verbose_name="Отчество",
+        help_text="Отчество пользователя (необязательно)."
+    )
+    profile_image = models.ImageField(
+        upload_to='profile_images/',
+        blank=True,
+        null=True,
+        verbose_name="Изображение профиля",
+        help_text="Аватар пользователя.",
+        validators=[FileExtensionValidator(allowed_extensions=['jpg', 'jpeg', 'png'])]
+    )
+    date_joined = models.DateTimeField(
+        auto_now_add=True,
+        editable=False,
+        verbose_name="Дата регистрации"
+    )
 
     class Meta:
         verbose_name = "Пользователь"
         verbose_name_plural = "Пользователи"
 
-
     def __str__(self):
         return self.username
+
+    def calculate_age(self):
+        """Вычисляет возраст пользователя."""
+        if self.date_of_birth:
+            today = date.today()
+            return today.year - self.date_of_birth.year - (
+                    (today.month, today.day) < (self.date_of_birth.month, self.date_of_birth.day)
+            )
+        return None
+
+    def calculate_bmi(self):
+        """Вычисляет индекс массы тела (BMI)."""
+        if self.weight_kg and self.height_cm:
+            height_m = self.height_cm / 100
+            return round(self.weight_kg / (height_m ** 2), 2)
+        return None
+
+    def save(self, *args, **kwargs):
+        self.email = self.email.lower()
+        self.username = self.username.lower()
+        super().save(*args, **kwargs)
 
 
 class Achievement(models.Model):
